@@ -1,0 +1,6 @@
+# average values of the error in a scaled calculated shift, and estimated degrees of freedom for the fitted t-distribution.
+level_of_theory	mu_s    sigma_s    v_s
+					13C series
+B3LYP/6_31G** 0   2.306   11.38
+					1H series
+B3LYP/6_31G** 0   0.185   14.18

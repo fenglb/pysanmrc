@@ -23,13 +23,10 @@ for isomer in isomers:
     scaled_value = scaledValue( isomer, expValue )
     cdp4_s.append( calculateTDP4( scaled_value, expValue, mean_s, stdev_s, degree_s ) )
 
-    exp_sp    = [ value for i, value in enumerate(expValue) if sp[i] == 1 ]
-    isomer_sp = [ value for i, value in enumerate(isomer) if sp[i] == 1 ]
-
-    exp_sp3    = [ value for i, value in enumerate(expValue) if sp[i] == 0 ]
-    isomer_sp3 = [ value for i, value in enumerate(isomer) if sp[i] == 0 ]
-
-    cdp4_u.append( calculateTDP4( isomer_sp, exp_sp, mean_u_sp, stdev_u_sp, degree_u_sp )*calculateTDP4( isomer_sp3, exp_sp3, mean_u_sp3, stdev_u_sp3, degree_u_sp3 ) )
+    #usv_sp = [mean_u_sp, stdev_u_sp, degree_u_sp]
+    usv_sp = [mean_u_sp, stdev_u_sp ]
+    usv_sp3 = [mean_u_sp3, stdev_u_sp3, degree_u_sp3]
+    cdp4_u.append( calculateDP4plus( isomer, expValue, sp, usv_sp, usv_sp3) )
 
 print "scaled: ", cdp4_s
 print "unscaled: ", cdp4_u
