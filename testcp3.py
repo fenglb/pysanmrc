@@ -1,4 +1,21 @@
-from comparedMethods import *
+from sanmrc.comparemethods import *
+
+expect_h = 0.478
+stdev_h = 0.303
+iexpect_h = -0.786
+istdev_h = 0.835
+
+expect_c = 0.547
+stdev_c = 0.253
+iexpect_c = -0.487
+istdev_c = 0.533
+
+expect_m = 0.512
+stdev_m = 0.209
+iexpect_m = -0.637
+istdev_m = 0.499
+
+
 
 exp_b_c13 = ([76.1218 ,47.0828, 175.6654, 14.2679 , 141.5826, 126.5307, 128.2366, 127.7682, 60.5621, 13.9824])
 exp_a_c13 = ([73.7292 ,46.5231 ,175.5017, 10.9476 , 141.5293, 125.9367, 128.0500, 127.3075,  60.524, 13.9214])
@@ -8,15 +25,17 @@ exp_b_1h   = ([7.30500, 7.30500, 7.30500, 4.74540, 4.17875, 4.17875, 2.79690, 1.
 calc_a_1h  = ([5.27250801496412000000, 2.46511592440598000000, 1.13712631214753000000, 7.43468127418946000000, 7.37704065013850000000, 7.22706900674204000000, 4.15874856882326000000, 1.18811375598228000000, 3.14715999970654000000, 4.16130813951634000000])
 calc_b_1h  = ([4.75707855963232000000, 2.74337567543689000000, 1.37752782731981000000, 7.34502691786925000000, 7.34329546303314000000, 7.19890290134792000000, 3.91711685472531000000, 0.90984100630663400000, 4.00544909417348000000, 3.89399303536644000000])
 
-print "CP1: ", calculateCpd( calc_a_c13, exp_a_c13, calc_b_c13, exp_b_c13 )
-print "CP2: ", calculateCpe( calc_a_c13, exp_a_c13, calc_b_c13, exp_b_c13 )
-print "CP3: ", calculateCph( calc_a_c13, exp_a_c13, calc_b_c13, exp_b_c13 )
+aAbB = calculateCph( calc_a_c13, exp_a_c13, calc_b_c13, exp_b_c13 )
 
 def exchange( array, x, y ):
     array[x], array[y] = array[y], array[x]
 
 exchange( exp_b_c13, 3, 9 )
 exchange( exp_a_c13, 3, 9 )
-print "CP1: ", calculateCpd( calc_a_c13, exp_b_c13, calc_b_c13, exp_a_c13 )
-print "CP2: ", calculateCpe( calc_a_c13, exp_b_c13, calc_b_c13, exp_a_c13 )
-print "CP3: ", calculateCph( calc_a_c13, exp_b_c13, calc_b_c13, exp_a_c13 )
+
+aBbA = calculateCph( calc_a_c13, exp_b_c13, calc_b_c13, exp_a_c13 )
+
+print( "aAbB: %s, aBbA: %s" % ( aAbB, aBbA ) )
+aAbBp = getBayersProbabilities( aAbB, aBbA, (expect_c, stdev_c), (iexpect_c, istdev_c) )
+aBbAp = getBayersProbabilities( aBbA, aAbB, (expect_c, stdev_c), (iexpect_c, istdev_c) )
+print( "the probabilities of aAbB: %s, aBbA: %s" % ( aAbBp, aBbAp ) )
