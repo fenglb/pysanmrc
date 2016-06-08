@@ -6,12 +6,9 @@ class StatisticalNMR:
         self.nmrdata = []
         self.molecular = Molecular()
 
-    def readDataFromFile(self, filename, dtype):
-        _exchange_list = []
+    def readDataFromFile(self, filename):
         raw_calc_data = {}
         raw_exp_data = {}
-        _label = []
-        _hybs  = []
         with open(filename, "r") as f:
             while True:
                 line = f.readline()
@@ -28,41 +25,44 @@ class StatisticalNMR:
                     Labels = line.strip().split()[1:]
                     calcItems = filter( lambda line: line.islower(), Labels )
                     expItems  = filter( lambda line: line.isupper(), Labels )
+                    continue
+                if line.startswith("%BEGIN"):
+                    _exchange_list = []
+                    _label = []
+                    _hybs  = []
                     for item in calcItems:
                         raw_calc_data[item] = []
                     for item in expItems:
                         raw_exp_data[item] = []
-                    continue
-                if line.startswith("%BEGIN"):
                     if not Labels: raise SyntaxError("the format of input file has error!")
+                    if( len(line.split()) != 2 ): raise SyntaxError("the format of input file has error!")
+                    dtype = line.split()[1]
                     while True:
                         line = f.readline()
                         if line.startswith("%END"): break
+                        if line.startswith("EXCH"):
+                            items = line.strip().split()[1:]
+                            _exchange_list.append(items)
+                            continue
                         items = line.strip().split()
                         _label.append(items[0])
                         for i, item in enumerate(Labels):
                             if item.isupper(): raw_exp_data[item].append(items[i+1])
                             elif item.islower(): raw_calc_data[item].append(items[i+1])
                             else: _hybs.append(items[i+1])
+                    _nmrdata = NMRData(dtype)
+                    _nmrdata.setLabel( _label )
+                    self.molecular.setLabel(dtype, _label)
+                    self.molecular.setHybs(dtype, _hybs)
+                    avg = lambda x: 1.0*sum(x)/len(x)
+                    str2float = lambda x: avg(map(float, x.split("-"))) if "-" in x else float(x)
+                    for key in raw_calc_data:
+                        _nmrdata.setCalcData(key, map(float, raw_calc_data[key]))
+                    for key in raw_exp_data:
+                        _nmrdata.setExpData(key, map(str2float, raw_exp_data[key]))
+                    _nmrdata.setExchangeLabel(_exchange_list)
+                    self.nmrdata.append(_nmrdata)
                     continue
-                if line.startswith("EXCH"):
-                    items = line.strip().split()[1:]
-                    _exchange_list.append(items)
-
-        _nmrdata = NMRData(dtype)
-        _nmrdata.setLabel( _label )
-
-        self.molecular.setLabel(dtype, _label)
-        self.molecular.setHybs(dtype, _hybs)
-
-        avg = lambda x: 1.0*sum(x)/len(x)
-        str2float = lambda x: avg(map(float, x.split("-"))) if "-" in x else float(x)
-        for key in raw_calc_data:
-            _nmrdata.setCalcData(key, map(float, raw_calc_data[key]))
-        for key in raw_exp_data:
-            _nmrdata.setExpData(key, map(str2float, raw_exp_data[key]))
-        _nmrdata.setExchangeLabel(_exchange_list)
-        self.nmrdata.append(_nmrdata)
 
     def printNMR(self, label, calc, exp, dtype):
         calc_items = sorted(calc.keys())
@@ -97,11 +97,13 @@ class StatisticalNMR:
                     cdp4_s = []
                     for icalc in _nmrdata.calc_data:
                         scaled_value = scaledValue( _nmrdata.calc_data[icalc], temp_exp_data[iexp] )
-                        cdp4_s.append(calculateTDP4(scaled_value, temp_exp_data[iexp], meanC, stdevC, degreeC))
+                        if _nmrdata.dtype == "13C": cdp4_s.append(calculateTDP4(scaled_value, temp_exp_data[iexp], meanC, stdevC, degreeC))
+                        if _nmrdata.dtype == "1H": cdp4_s.append(calculateTDP4(scaled_value, temp_exp_data[iexp], meanH, stdevH, degreeH))
                     print(map(lambda x: "{0:.2f}%".format(100*x/sum(cdp4_s)),  cdp4_s))
 
 if __name__ == "__main__":
+    import sys
     s = StatisticalNMR()
-    filename = "../data/aldols.C"
-    s.readDataFromFile(filename, '13C')
+    filename = sys.argv[1]
+    s.readDataFromFile(filename)
     s.report()
