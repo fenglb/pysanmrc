@@ -1,3 +1,4 @@
+from itertools import chain
 from nmrdata import NMRData, Molecular
 from comparemethods import calculateTDP4
 from predata import scaledValue
@@ -81,10 +82,11 @@ class StatisticalNMR:
     def report(self):
         for _nmrdata in self.nmrdata:
             for i, item in enumerate(_nmrdata.all_exchange_list):
-                #temp_list = lambda y: [_nmrdata.label[x] for x in chain.from_iterable(y)]
+                temp_list = lambda y: [_nmrdata.label[x] for x in chain.from_iterable(y)]
                 print("=="*10+"("+str(i+1)+")"+"=="*10)
-                #print(",".join(temp_list(self.all_exchange_list[0])) + "==>" + ",".join(temp_list(item)))
-                #print("--"*20)
+                if( item ):
+                    print(",".join(temp_list(_nmrdata.all_exchange_list[0])) + "==>" + ",".join(temp_list(item)))
+                print("--"*20)
                 temp_exp_data = _nmrdata.exchangeNMR(item)
                 self.printNMR(_nmrdata.label, _nmrdata.calc_data, temp_exp_data, _nmrdata.dtype)
                 meanC = 0.0
@@ -94,12 +96,13 @@ class StatisticalNMR:
                 degreeC = 11.38
                 degreeH = 14.18
                 for iexp in temp_exp_data:
-                    cdp4_s = []
+                    cdp4_s = {}
                     for icalc in _nmrdata.calc_data:
                         scaled_value = scaledValue( _nmrdata.calc_data[icalc], temp_exp_data[iexp] )
-                        if _nmrdata.dtype == "13C": cdp4_s.append(calculateTDP4(scaled_value, temp_exp_data[iexp], meanC, stdevC, degreeC))
-                        if _nmrdata.dtype == "1H": cdp4_s.append(calculateTDP4(scaled_value, temp_exp_data[iexp], meanH, stdevH, degreeH))
-                    print(map(lambda x: "{0:.2f}%".format(100*x/sum(cdp4_s)),  cdp4_s))
+                        if _nmrdata.dtype == "13C": cdp4_s[icalc] = calculateTDP4(scaled_value, temp_exp_data[iexp], meanC, stdevC, degreeC)
+                        if _nmrdata.dtype == "1H":  cdp4_s[icalc] = calculateTDP4(scaled_value, temp_exp_data[iexp], meanH, stdevH, degreeH)
+                    cdp4_s = map(lambda x: (iexp+x, "{0:.2f}%".format(100*cdp4_s[x]/sum(cdp4_s.values()))),  cdp4_s)
+                    print("{0}:{1}; {2}:{3}".format(*list(chain.from_iterable(cdp4_s))))
 
 if __name__ == "__main__":
     import sys
