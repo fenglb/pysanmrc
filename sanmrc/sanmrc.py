@@ -1,4 +1,6 @@
 from nmrdata import NMRData, Molecular
+from comparemethods import calculateTDP4
+from predata import scaledValue
 class StatisticalNMR:
     def __init__(self):
         self.nmrdata = []
@@ -85,11 +87,21 @@ class StatisticalNMR:
                 #print("--"*20)
                 temp_exp_data = _nmrdata.exchangeNMR(item)
                 self.printNMR(_nmrdata.label, _nmrdata.calc_data, temp_exp_data, _nmrdata.dtype)
+                meanC = 0.0
+                meanH = 0.0
+                stdevC = 2.306
+                stdevH = 0.187
+                degreeC = 11.38
+                degreeH = 14.18
+                for iexp in temp_exp_data:
+                    cdp4_s = []
+                    for icalc in _nmrdata.calc_data:
+                        scaled_value = scaledValue( _nmrdata.calc_data[icalc], temp_exp_data[iexp] )
+                        cdp4_s.append(calculateTDP4(scaled_value, temp_exp_data[iexp], meanC, stdevC, degreeC))
+                    print(map(lambda x: "{0:.2f}%".format(100*x/sum(cdp4_s)),  cdp4_s))
 
 if __name__ == "__main__":
     s = StatisticalNMR()
     filename = "../data/aldols.C"
     s.readDataFromFile(filename, '13C')
-    filename = "../data/aldols.H"
-    s.readDataFromFile(filename, '1H')
     s.report()
