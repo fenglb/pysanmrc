@@ -102,7 +102,7 @@ class StatisticalNMR:
                         if _nmrdata.dtype == "13C": cdp4_s[icalc] = calculateTDP4(scaled_value, temp_exp_data[iexp], meanC, stdevC, degreeC)
                         if _nmrdata.dtype == "1H":  cdp4_s[icalc] = calculateTDP4(scaled_value, temp_exp_data[iexp], meanH, stdevH, degreeH)
                     cdp4_s = map(lambda x: (iexp+x, "{0:.2f}%".format(100*cdp4_s[x]/sum(cdp4_s.values()))),  cdp4_s)
-                    print("{0}:{1}; {2}:{3}".format(*list(chain.from_iterable(cdp4_s))))
+                    print("; ".join(["{0}:{1}".format(x,y) for x, y in cdp4_s]))
 
 if __name__ == "__main__":
     import sys

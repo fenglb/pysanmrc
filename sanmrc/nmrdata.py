@@ -26,7 +26,7 @@ class NMRData:
         for key in self.exp_data:
             temp_exp_data[key] = self.exp_data[key][:]
             for x, y in zip(chain.from_iterable(self.all_exchange_list[0]), chain.from_iterable(exchange_item)):
-                temp_exp_data[key][x], temp_exp_data[key][y] = self.exp_data[key][y] ,self.exp_data[key][x]
+                temp_exp_data[key][x] = self.exp_data[key][y]
         return temp_exp_data
 
 class Molecular:
