@@ -72,7 +72,7 @@ def calculateCDP4( calc, exp, expect, stdev ):
     errors = ( x - y for x, y in zip(calc, exp) )
     probility = lambda x: stats.norm.cdf(-1.0 * abs(x - expect) / stdev)
 
-    cdp4 = reduce( lambda x, y: probility(x) * probility(y), errors )
+    cdp4 = reduce( lambda x, y: x * y, map( probility, errors ) )
     return cdp4
 
 # t distribution
@@ -82,7 +82,7 @@ def calculateTDP4( calc, exp, expect, stdev, degree ):
     errors = ( x - y for x, y in zip(calc, exp) )
     probility = lambda x: stats.t.cdf(-1.0 * abs(x - expect) / stdev, degree)
 
-    cdp4 = reduce( lambda x, y: probility(x) * probility(y), errors )
+    cdp4 = reduce( lambda x, y: x * y, map( probility, errors ) )
     return cdp4
 
 def calculatePDP4( calc, exp, expect, stdev ):

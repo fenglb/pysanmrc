@@ -1,0 +1,40 @@
+# comment uses `#`
+# data from `%BEGIN` and end `%END`
+# `a,b,c,...,aa,...` lowercase ==> calculated data
+# `A,B,C,...,AA,...` uppercase ==> experimental data
+# `*`	==> hybridization state 1,2 or 3 for sp, sp2 and sp3 atoms
+# `%C` mean the data followed is carbon data until `%H` or `%END`
+# `NAME` names the name of the molecula
+# `DIAS` names the diastereoisomers
+# `EXCH` means the item in the list can be interchanged within each
+%BEGIN
+NAME aldols
+DIAS A 1R
+DIAS B 1S
+Label	a	b	A	B	*
+%C
+1	74.26	76.55	73.73	76.12	3	
+2	48.45	48.32	46.52	47.08	3
+3	176.85	174.57	175.50	175.67	2
+4	11.67	18.42	10.95	14.27	3
+5	138.21	139.59	141.53	141.58	2
+6	121.90	121.50	125.94	126.53	2
+7	122.50	122.56	128.05	128.24	2
+8	121.06	121.01	127.31	127.77	2
+9	58.83	58.34	60.52	60.56	3
+10	15.63	15.42	13.92	13.98	3
+EXCH 4 10
+EXCH 6 7
+%H
+1	5.27	4.76	5.09	4.75	3
+2	2.47	2.74	2.77	2.80	3
+4	1.14	1.38	1.12	1.02	3
+6	7.43	7.35	7.22-7.35	7.25-7.36	2
+7	7.38	7.34	7.22-7.35	7.25-7.36	2
+8	7.23	7.20	7.22-7.35	7.25-7.36	2
+9R	4.16	3.89	4.12	4.18	3
+9S	4.16	3.92	4.12	4.18	3
+10	1.19	0.91	1.21	1.25	3
+EXCH 6 7 8
+EXCH 9R 9S
+%END
