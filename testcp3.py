@@ -30,8 +30,8 @@ aAbB = calculateCph( calc_a_c13, exp_a_c13, calc_b_c13, exp_b_c13 )
 def exchange( array, x, y ):
     array[x], array[y] = array[y], array[x]
 
-exchange( exp_b_c13, 3, 9 )
-exchange( exp_a_c13, 3, 9 )
+#exchange( exp_b_c13, 3, 9 )
+#exchange( exp_a_c13, 3, 9 )
 
 aBbA = calculateCph( calc_a_c13, exp_b_c13, calc_b_c13, exp_a_c13 )
 
