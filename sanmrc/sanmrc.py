@@ -145,39 +145,57 @@ class StatisticalNMR:
                     cp3_p[key] = bayers1h(*item.values()[::-1])
             print("CP3: " + "; ".join(["{0}:{1:.2f}%".format(x,100*cp3_p[x]) for x in cp3_p]))
 
-    def report(self):
+    def productPairData(self, exp_data, calc_data, num):
+        if(len(nmrdata.exp_data) < num):
+            raise(Exception("CP3 only for pair dias"))
+            exp_per = combinations(exp_data, num)
+            calc_com = combinations(calc_data, num)
+            for iexp in exp_per:
+                for icalc in calc_com:
+                    yield [exp_data[key] for key in iexp], [calc_data[key] for key in icalc]
+
+    def productData(self, exp_data, calc_data):
+            comps = product( exp_data, calc_data )
+            for item in comps:
+                tab = "".join(item)
+                yield tab, exp_data[item[0]], calc_data[item[1]]
+
+    def calculateDP4(self, calc, exp, dtype):
+        meanC = 0.0
+        meanH = 0.0
+        stdevC = 2.306
+        stdevH = 0.187
+        degreeC = 11.38
+        degreeH = 14.18
+        if dtype == "13C": return calculateTDP4(calc, exp, meanC, stdevC, degreeC)
+        if dtype == "1H":  return calculateTDP4(calc, exp, meanH, stdevH, degreeH)
+
+    def productRawData(self):
         for _nmrdata in self.nmrdata:
             for i, item in enumerate(_nmrdata.all_exchange_list):
                 temp_list = lambda y: [_nmrdata.label[x] for x in chain.from_iterable(y)]
-                print("=="*10+"("+str(i+1)+")"+"=="*10)
                 print(self.checkExchangeItem(temp_list(_nmrdata.all_exchange_list[0]), temp_list(item)))
-                print("--"*20)
                 temp_exp_data = _nmrdata.exchangeNMR(item)
-                self.printNMR(_nmrdata.label, _nmrdata.calc_data, temp_exp_data, _nmrdata.dtype)
-                meanC = 0.0
-                meanH = 0.0
-                stdevC = 2.306
-                stdevH = 0.187
-                degreeC = 11.38
-                degreeH = 14.18
-                for iexp in temp_exp_data:
-                    cdp4_s = {}
-                    cc_s = {}
-                    mae_s = {}
-                    for icalc in _nmrdata.calc_data:
-                        scaled_value = scaledValue( _nmrdata.calc_data[icalc], temp_exp_data[iexp] )
-                        if _nmrdata.dtype == "13C": cdp4_s[icalc] = calculateTDP4(scaled_value, temp_exp_data[iexp], meanC, stdevC, degreeC)
-                        if _nmrdata.dtype == "1H":  cdp4_s[icalc] = calculateTDP4(scaled_value, temp_exp_data[iexp], meanH, stdevH, degreeH)
-                        cc_s[icalc] = calculateCC(scaled_value, temp_exp_data[iexp])
-                        mae_s[icalc] = calculateMae(scaled_value, temp_exp_data[iexp])
+                yield _nmrdata.dtype, _nmrdata.label, temp_exp_data, _nmrdata.calc_data
 
-                    cdp4_s = map(lambda x: (iexp+x, "{0:.2f}%".format(100*cdp4_s[x]/sum(cdp4_s.values()))),  cdp4_s)
-                    cc_s = map(lambda x: (iexp+x, "{0:.6f}".format(cc_s[x])),  cc_s)
-                    mae_s = map(lambda x: (iexp+x, "{0:.6f}".format(mae_s[x])),  mae_s)
-                    print("DP4: " + "; ".join(["{0}:{1}".format(x,y) for x, y in cdp4_s]))
-                    print("CC: " + "; ".join(["{0}:{1}".format(x,y) for x, y in cc_s]))
-                    print("MAE: " + "; ".join(["{0}:{1}".format(x,y) for x, y in mae_s]))
-                self.calculateCp3()
+    def report(self):
+        for dtype, label, exp_data, calc_data in self.productRawData():
+            cdp4_s = {}
+            cc_s   = {}
+            mae_s  = {}
+            self.printNMR(label, exp_data, calc_data, dtype)
+            for tab, exp0, calc0 in self.productData(exp_data, calc_data):
+                scaled_value = scaledValue( calc0, exp0 )
+                cc_s[tab] = calculateCC(scaled_value, exp0)
+                mae_s[tab] = calculateMae(scaled_value, exp0)
+
+            #cdp4_s = map(lambda x: (iexp+x, "{0:.2f}%".format(100*cdp4_s[x]/sum(cdp4_s.values()))),  cdp4_s)
+            cc_s = map(lambda x: (x, "{0:.6f}".format(cc_s[x])),  cc_s)
+            mae_s = map(lambda x: (x, "{0:.6f}".format(mae_s[x])),  mae_s)
+            #print("DP4: " + "; ".join(["{0}:{1}".format(x,y) for x, y in cdp4_s]))
+            print("CC: " + "; ".join(["{0}:{1}".format(x,y) for x, y in cc_s]))
+            print("MAE: " + "; ".join(["{0}:{1}".format(x,y) for x, y in mae_s]))
+            #self.calculateCp3()
 
 if __name__ == "__main__":
     import sys
