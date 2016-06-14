@@ -45,9 +45,11 @@ class StatPara:
             return None
 
 if __name__ == "__main__":
-    sp = StatPara("statparas.db")
+    sp = StatPara("../data/statparas.db")
     print(sp.getStatParaData('CP3', 'Gaussian09', 'B3LYP', '6-31G', 'GasPhase', 'incorrectC13', 'n'))
     print(sp.getTMSData('DP4+', 'Gaussian09', 'B3LYP', '6-31G(d,p)', 'GasPhase'))
     print(sp.getStatParaData('DP4+', 'Gaussian09', 'B3LYP', '6-31G', 'GasPhase', 'C13', 't'))
+    print("="*8)
+    print(sp.getStatParaData('DP4+', 'Gaussian09', 'B3LYP', '6-31G(d,p)', 'GasPhase', 'scaledC13', 't'))
     print(sp.getStatParaData('DP4', 'Gaussian09', 'B3LYP', '6-31G(d,p)', 'GasPhase', 'C13', 't'))
 

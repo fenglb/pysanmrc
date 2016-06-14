@@ -1,8 +1,9 @@
 from itertools import chain, product, permutations, combinations
 from functools import partial
 from nmrdata import NMRData, Molecular
-from comparemethods import calculateDP4, calculateCC, calculateMae, calculateCP3
+from comparemethods import calculateDP4, calculateCC, calculateMae, calculateCP3, calculateuDP4
 from predata import scaledValue
+import pandas
 class StatisticalNMR:
     def __init__(self):
         self.nmrdata = []
@@ -102,7 +103,7 @@ class StatisticalNMR:
                 temp_exp_data = _nmrdata.exchangeNMR(item)
                 yield _nmrdata.dtype, _nmrdata.label, temp_exp_data, _nmrdata.calc_data
 
-    def calc(self, exps, calcs, funcs, dtype=None):
+    def calc(self, exps, calcs, funcs, dtype=None ):
         results = {}
         for func_name in funcs:
             results[func_name] = {}
@@ -114,35 +115,52 @@ class StatisticalNMR:
                     results[func_name][exp_label] = {}
                     for calc_label, calc_data in self.productPairData(calcs,2):
                         scaled_calc_data = map( scaledValue, calc_data, exp_data )
-                        results[func_name][exp_label][calc_label] = func(scaled_calc_data, exp_data, dtype)
+                        ab, ba = func(scaled_calc_data, exp_data, dtype)
+                        results[func_name][exp_label][calc_label] = ab
+                        results[func_name][exp_label][calc_label[::-1]] = ba
             else:
                 for tab_exp in exps:
                     results[func_name][tab_exp] = {}
                     for tab_calc in calcs:
-                        # pre treatment
                         calc = calcs[tab_calc]; exp = exps[tab_exp]
-                        scaled_calc_value = scaledValue(calc, exp)
+                        # pre treatment
+                        if( func_name != 'calculateuDP4' ): calc = scaledValue(calc, exp)
 
-                        results[func_name][tab_exp][tab_calc] = func(scaled_calc_value, exp, dtype)
+                        results[func_name][tab_exp][tab_calc] = func(calc, exp, dtype)
         return results
+
+    def calculateuDP4(self, calc, exp, dtype):
+        return calculateuDP4( calc, exp, dtype, self.molecular.hybs[dtype])
 
     def report(self):
         for dtype, label, exp_data, calc_data in self.productRawData():
             self.printNMR(label, calc_data, exp_data, dtype)
 
             results = self.calc(exp_data, calc_data, 
-                    ['calculateDP4','calculateCP3', 'calculateCC', 'calculateMae'],
+                    ['calculateDP4','calculateCP3', 'calculateCC', 'calculateMae', 'calculateuDP4'],
                     dtype)
-            print results
-
-            cdp4_s = results['calculateDP4']
-            #cdp4_s = map(lambda x: (x, "{0:.2f}%".format(100*cdp4_s[x]/sum(cdp4_s.values()))),  cdp4_s)
-            #cc_s = map(lambda x: (x, "{0:.6f}".format(cc_s[x])),  cc_s)
-            #mae_s = map(lambda x: (x, "{0:.6f}".format(mae_s[x])),  mae_s)
-            #print("DP4: " + "; ".join(["{0}:{1}".format(x,y) for x, y in cdp4_s]))
-            #print("CC: " + "; ".join(["{0}:{1}".format(x,y) for x, y in cc_s]))
-            #print("MAE: " + "; ".join(["{0}:{1}".format(x,y) for x, y in mae_s]))
-            #self.calculateCp3()
+            new_res = {'calculateuDP4':{}, 'calculateMae':{}, 'calculateCC':{}, 'calculateDP4':{}, 'calculateCP3':{}}
+            for item in results['calculateuDP4']:
+                cdp4_s = results['calculateuDP4'][item]
+                cdp4_s = map(lambda x: (item+x, 100*cdp4_s[x]/sum(cdp4_s.values())),  cdp4_s)
+                new_res['calculateuDP4'].update( dict(cdp4_s) )
+            for item in results['calculateDP4']:
+                cdp4_s = results['calculateDP4'][item]
+                cdp4_s = map(lambda x: (item+x, 100*cdp4_s[x]/sum(cdp4_s.values())),  cdp4_s)
+                new_res['calculateDP4'].update(dict(cdp4_s))
+            for item in results['calculateCC']:
+                cdp4_s = results['calculateCC'][item]
+                cdp4_s = map(lambda x: (item+x, cdp4_s[x]),  cdp4_s)
+                new_res['calculateCC'].update(dict(cdp4_s))
+            for item in results['calculateMae']:
+                cdp4_s = results['calculateMae'][item]
+                cdp4_s = map(lambda x: (item+x, cdp4_s[x]),  cdp4_s)
+                new_res['calculateMae'].update(dict(cdp4_s))
+            for item in results['calculateCP3']:
+                cdp4_s = results['calculateCP3'][item]
+                cdp4_s = map(lambda x: (item+x, 100*cdp4_s[x]),  cdp4_s)
+                new_res['calculateCP3'].update(dict(cdp4_s))
+            print(pandas.DataFrame(new_res))
 
 if __name__ == "__main__":
     import sys

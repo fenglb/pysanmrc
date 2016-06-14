@@ -142,11 +142,12 @@ def calculatePDP4( calc, exp, expect, stdev ):
 
 def calculateuTDP4( calc, exp, spX, usv_sp, usv_sp3 ):
 
-    exp_sp   = [ value for i, value in enumerate(exp)  if spX[i] == 1 ]
-    calc_sp  = [ value for i, value in enumerate(calc) if spX[i] == 1 ]
+    spX = map(int, spX)
+    exp_sp   = [ value for i, value in enumerate(exp)  if spX[i] <= 2 ]
+    calc_sp  = [ value for i, value in enumerate(calc) if spX[i] <= 2 ]
 
-    exp_sp3  = [ value for i, value in enumerate(exp)  if spX[i] == 0 ]
-    calc_sp3 = [ value for i, value in enumerate(calc) if spX[i] == 0 ]
+    exp_sp3  = [ value for i, value in enumerate(exp)  if spX[i] == 3 ]
+    calc_sp3 = [ value for i, value in enumerate(calc) if spX[i] == 3 ]
     
     expect_sp, stdev_sp, degree_sp = usv_sp
     expect_sp3, stdev_sp3, degree_sp3 = usv_sp3
@@ -157,16 +158,11 @@ def calculateuTDP4( calc, exp, spX, usv_sp, usv_sp3 ):
 
 def calculateuDP4(calc, exp, dtype, spX):
 
-    mean_s = 0.0
-    stdev_s = 1.58055
-    degree_s = 5.9698
-    mean_u_sp = -6.15715
-    stdev_u_sp = 2.4881
-    degree_u_sp = 6.53169
-    mean_u_sp3 = 1.30169
-    stdev_u_sp3 = 1.64843
-    degree_u_sp3 = 6.28871
-    usv_sp = [mean_u_sp, stdev_u_sp, degree_u_sp]
-    usv_sp3 = [mean_u_sp3, stdev_u_sp3, degree_u_sp3]
+    if dtype == "13C":
+        usv_sp = [-6.16, 2.49, 6.53]
+        usv_sp3 = [1.3, 1.65, 6.29]
+    if dtype == "1H":
+        usv_sp = [-0.17, 0.19, 13.81]
+        usv_sp3 = [-0.06, 0.17, 6.95]
     
-    return calculateuTDP4( calc, exp, spX, usv_sp, usv_sp3 ):
+    return calculateuTDP4( calc, exp, spX, usv_sp, usv_sp3 )
