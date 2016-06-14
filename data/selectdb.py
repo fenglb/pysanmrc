@@ -1,0 +1,13 @@
+import sqlite3
+conn = sqlite3.connect("statparas.db")
+cur  = conn.cursor()
+cur.execute("select * from StatPara")
+values = cur.fetchall()
+print(values)
+#cur.execute('''select * from NMRData where STATPARA_ID=?''', (str(values[0]),))
+cur.execute("select * from NMRData")
+values = cur.fetchall()
+print(values)
+cur.execute("select * from StatParaData")
+values = cur.fetchall()
+print(values)

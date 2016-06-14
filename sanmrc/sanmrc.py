@@ -1,13 +1,15 @@
 from itertools import chain, product, permutations, combinations
 from functools import partial
 from nmrdata import NMRData, Molecular
-from comparemethods import calculateTDP4, calculateCC, calculateMae, calculateCph, getBayersProbabilities
+from comparemethods import calculateDP4, calculateCC, calculateMae, calculateCP3
 from predata import scaledValue
 class StatisticalNMR:
     def __init__(self):
         self.nmrdata = []
         self.molecular = Molecular()
 
+        map(lambda func: setattr(self, func.__name__, func), 
+                [calculateDP4, calculateCC, calculateMae, calculateCP3])
     def readDataFromFile(self, filename):
         raw_calc_data = {}
         raw_exp_data = {}
@@ -88,69 +90,10 @@ class StatisticalNMR:
         if not exchange_items: return "Raw data"
         return ", ".join( exchange_items )
 
-    def calculateCp3(self, label, exp_data_pair, calc_data_pair, dtype):
-        expect_h = 0.478
-        stdev_h = 0.303
-        iexpect_h = -0.786
-        istdev_h = 0.835
-
-        expect_c = 0.547
-        stdev_c = 0.253
-        iexpect_c = -0.487
-        istdev_c = 0.533
-
-        expect_m = 0.512
-        stdev_m = 0.209
-        iexpect_m = -0.637
-        istdev_m = 0.499
-
-        cp3_s = []
-        argv = [calc_data_pair[0], exp_data_pair[0], 
-                calc_data_pair[1], exp_data_pair[1]]
-        temp = {}
-        temp[lable] = calculateCph()
-
-        argv = [calc_data_pair[0], exp_data_pair[1], 
-                calc_data_pair[1], exp_data_pair[0]]
-        temp["r"+label] = calculateCph(*argv)
-        cp3_s.append(temp)
-
-        bayers13c = partial( getBayersProbabilities, uv_correct=(expect_c, stdev_c), uv_incorrect=(iexpect_c, istdev_c) )
-        bayers1h = partial( getBayersProbabilities, uv_correct=(expect_h, stdev_h), uv_incorrect=(iexpect_h, istdev_h) )
-        cp3_p = {}
-        if dtype == "13C":
-            for item in cp3_s:
-                key = "/".join(item.keys())
-                cp3_p[key] = bayers13c(*item.values())
-                key = "/".join(item.keys()[::-1])
-                cp3_p[key] = bayers13c(*item.values()[::-1])
-        elif dtype == "1H":
-            for item in cp3_s:
-                key = "/".join(item.keys())
-                cp3_p[key] = bayers1h(*item.values())
-                key = "/".join(item.keys()[::-1])
-                cp3_p[key] = bayers1h(*item.values()[::-1])
-        print("CP3: " + "; ".join(["{0}:{1:.2f}%".format(x,100*cp3_p[x]) for x in cp3_p]))
-
-    def productPairData(self, exp_data, calc_data, num):
-        if(len(nmrdata.exp_data) < num):
-            raise(Exception("CP3 only for pair dias"))
-            exp_per = combinations(exp_data, num)
-            calc_com = combinations(calc_data, num)
-            for iexp in exp_per:
-                for icalc in calc_com:
-                    yield [exp_data[key] for key in iexp], [calc_data[key] for key in icalc]
-
-    def calculateDP4(self, calc, exp, dtype):
-        meanC = 0.0
-        meanH = 0.0
-        stdevC = 2.306
-        stdevH = 0.187
-        degreeC = 11.38
-        degreeH = 14.18
-        if dtype == "13C": return calculateTDP4(calc, exp, meanC, stdevC, degreeC)
-        if dtype == "1H":  return calculateTDP4(calc, exp, meanH, stdevH, degreeH)
-
+    def productPairData(self, data, num):
+        for idata in combinations(data, num):
+            yield "".join(idata), [data[key] for key in idata]
+       
     def productRawData(self):
         for _nmrdata in self.nmrdata:
             for i, item in enumerate(_nmrdata.all_exchange_list):
@@ -159,27 +102,46 @@ class StatisticalNMR:
                 temp_exp_data = _nmrdata.exchangeNMR(item)
                 yield _nmrdata.dtype, _nmrdata.label, temp_exp_data, _nmrdata.calc_data
 
+    def calc(self, exps, calcs, funcs, dtype=None):
+        results = {}
+        for func_name in funcs:
+            results[func_name] = {}
+            func = getattr(self, func_name, None)
+            if not func: continue
+
+            if func_name == 'calculateCP3':
+                for exp_label, exp_data in self.productPairData(exps,2):
+                    results[func_name][exp_label] = {}
+                    for calc_label, calc_data in self.productPairData(calcs,2):
+                        scaled_calc_data = map( scaledValue, calc_data, exp_data )
+                        results[func_name][exp_label][calc_label] = func(scaled_calc_data, exp_data, dtype)
+            else:
+                for tab_exp in exps:
+                    results[func_name][tab_exp] = {}
+                    for tab_calc in calcs:
+                        # pre treatment
+                        calc = calcs[tab_calc]; exp = exps[tab_exp]
+                        scaled_calc_value = scaledValue(calc, exp)
+
+                        results[func_name][tab_exp][tab_calc] = func(scaled_calc_value, exp, dtype)
+        return results
+
     def report(self):
         for dtype, label, exp_data, calc_data in self.productRawData():
             self.printNMR(label, calc_data, exp_data, dtype)
-            for tab_exp in exp_data:
-                cdp4_s = {}
-                cc_s   = {}
-                mae_s  = {}
-                for tab_calc in calc_data:
-                    exp0 = exp_data[tab_exp]; calc0 = calc_data[tab_calc]
-                    scaled_value = scaledValue(calc0, exp0)
-                    tab = tab_exp+tab_calc
-                    cc_s[tab] = calculateCC(scaled_value, exp0)
-                    mae_s[tab] = calculateMae(scaled_value, exp0)
-                    cdp4_s[tab] = self.calculateDP4(calc0, exp0, dtype)
 
-                cdp4_s = map(lambda x: (x, "{0:.2f}%".format(100*cdp4_s[x]/sum(cdp4_s.values()))),  cdp4_s)
-                cc_s = map(lambda x: (x, "{0:.6f}".format(cc_s[x])),  cc_s)
-                mae_s = map(lambda x: (x, "{0:.6f}".format(mae_s[x])),  mae_s)
-                print("DP4: " + "; ".join(["{0}:{1}".format(x,y) for x, y in cdp4_s]))
-                print("CC: " + "; ".join(["{0}:{1}".format(x,y) for x, y in cc_s]))
-                print("MAE: " + "; ".join(["{0}:{1}".format(x,y) for x, y in mae_s]))
+            results = self.calc(exp_data, calc_data, 
+                    ['calculateDP4','calculateCP3', 'calculateCC', 'calculateMae'],
+                    dtype)
+            print results
+
+            cdp4_s = results['calculateDP4']
+            #cdp4_s = map(lambda x: (x, "{0:.2f}%".format(100*cdp4_s[x]/sum(cdp4_s.values()))),  cdp4_s)
+            #cc_s = map(lambda x: (x, "{0:.6f}".format(cc_s[x])),  cc_s)
+            #mae_s = map(lambda x: (x, "{0:.6f}".format(mae_s[x])),  mae_s)
+            #print("DP4: " + "; ".join(["{0}:{1}".format(x,y) for x, y in cdp4_s]))
+            #print("CC: " + "; ".join(["{0}:{1}".format(x,y) for x, y in cc_s]))
+            #print("MAE: " + "; ".join(["{0}:{1}".format(x,y) for x, y in mae_s]))
             #self.calculateCp3()
 
 if __name__ == "__main__":
