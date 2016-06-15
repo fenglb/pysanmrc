@@ -116,8 +116,8 @@ class StatisticalNMR:
                     for calc_label, calc_data in self.productPairData(calcs,2):
                         scaled_calc_data = map( scaledValue, calc_data, exp_data )
                         ab, ba = func(scaled_calc_data, exp_data, dtype)
-                        results[func_name][exp_label][calc_label] = ab
-                        results[func_name][exp_label][calc_label[::-1]] = ba
+                        results[func_name][exp_label][calc_label] = ab*100
+                        results[func_name][exp_label][calc_label[::-1]] = ba*100
             else:
                 for tab_exp in exps:
                     results[func_name][tab_exp] = {}
@@ -127,9 +127,18 @@ class StatisticalNMR:
                         if( func_name != 'calculateuDP4' ): calc = scaledValue(calc, exp)
 
                         results[func_name][tab_exp][tab_calc] = func(calc, exp, dtype)
+                    if( func_name in ['calculateuDP4', 'calculateDP4'] ):
+                        sum_values = sum(results[func_name][tab_exp].values())
+                        for key in results[func_name][tab_exp]:
+                            results[func_name][tab_exp][key] *= 100
+                            if sum_values == 0:
+                                results[func_name][tab_exp][key] = 'NaN'
+                            else:
+                                results[func_name][tab_exp][key] /= sum_values
         return results
 
     def calculateuDP4(self, calc, exp, dtype):
+        if not self.molecular.hybs[dtype]: return 0.0
         return calculateuDP4( calc, exp, dtype, self.molecular.hybs[dtype])
 
     def report(self):
@@ -140,26 +149,12 @@ class StatisticalNMR:
                     ['calculateDP4','calculateCP3', 'calculateCC', 'calculateMae', 'calculateuDP4'],
                     dtype)
             new_res = {'calculateuDP4':{}, 'calculateMae':{}, 'calculateCC':{}, 'calculateDP4':{}, 'calculateCP3':{}}
-            for item in results['calculateuDP4']:
-                cdp4_s = results['calculateuDP4'][item]
-                cdp4_s = map(lambda x: (item+x, 100*cdp4_s[x]/sum(cdp4_s.values())),  cdp4_s)
-                new_res['calculateuDP4'].update( dict(cdp4_s) )
-            for item in results['calculateDP4']:
-                cdp4_s = results['calculateDP4'][item]
-                cdp4_s = map(lambda x: (item+x, 100*cdp4_s[x]/sum(cdp4_s.values())),  cdp4_s)
-                new_res['calculateDP4'].update(dict(cdp4_s))
-            for item in results['calculateCC']:
-                cdp4_s = results['calculateCC'][item]
-                cdp4_s = map(lambda x: (item+x, cdp4_s[x]),  cdp4_s)
-                new_res['calculateCC'].update(dict(cdp4_s))
-            for item in results['calculateMae']:
-                cdp4_s = results['calculateMae'][item]
-                cdp4_s = map(lambda x: (item+x, cdp4_s[x]),  cdp4_s)
-                new_res['calculateMae'].update(dict(cdp4_s))
-            for item in results['calculateCP3']:
-                cdp4_s = results['calculateCP3'][item]
-                cdp4_s = map(lambda x: (item+x, 100*cdp4_s[x]),  cdp4_s)
-                new_res['calculateCP3'].update(dict(cdp4_s))
+
+            for key in new_res:
+                for item in results[key]:
+                    cdp4_s = results[key][item]
+                    cdp4_s = map(lambda x: (item+x, cdp4_s[x]),  cdp4_s)
+                    new_res[key].update( dict(cdp4_s) )
             print(pandas.DataFrame(new_res))
 
 if __name__ == "__main__":
@@ -168,4 +163,3 @@ if __name__ == "__main__":
     filename = sys.argv[1]
     s.readDataFromFile(filename)
     s.report()
-    #s.calculateCp3()
