@@ -10,19 +10,22 @@ Build a web site for the stereochemical assignment using the quantum chemical ca
 The statical parameters referenced the supporting information of these papers[smith2009][smith2010][grimblat2015].
 
 Table 1: Expectation values and standard deviations in normal distribution of CP3 for both a correct assignment and an incorrect assignment.[smith2009]
+
 |       |C13     |H1      |C13+H1   |
 |--------|-----|-------|------|
 |Correct | 0.547(0.253) | 0.478(0.305) | 0.512(0.209) |
 |Incorrect | -0.487(0.533) | -0.786(0.835) | -0.637(0.499) |
 
 Table 2: Values of std and degree for the fitted t-distribution in a scaled calculated shift for DP4[smith2010].
+
 |       |C13     |H1    |
-|--------|:-----:|-------:|
+|--------|-----|-------|
 |`\mu`  |0      |0      |
 |`\sigma`  |2.306      |0.185     |
 |`\zeta`  |11.38    |14.18    |
 
 Table 3: Values of the [`\mu`, `\sigma`, `\zeta`] statistical parameters of DP4+.
+
 | Function          |     | B3LYP    | B3LYP    | B3LYP    | B3LYP     | B3LYP    | B3LYP     | B3LYP     | B3LYP    | B3LYP      | B3LYP    | B3LYP    | B3LYP    | mPW1PW91 | mPW1PW91  | mPW1PW91 | mPW1PW91  | mPW1PW91  | mPW1PW91 | mPW1PW91   | mPW1PW91 | mPW1PW91 | mPW1PW91 | mPW1PW91 | mPW1PW91  |     |           |           |     |            |     |          |          |     |           |     |           |           |     |            |     | 
 |-------------------|-----|----------|----------|----------|-----------|----------|-----------|-----------|----------|------------|----------|----------|----------|----------|-----------|----------|-----------|-----------|----------|------------|----------|----------|----------|----------|-----------|-----|-----------|-----------|-----|------------|-----|----------|----------|-----|-----------|-----|-----------|-----------|-----|------------|-----| 
 | Solvent           |     | GasPhase | GasPhase | GasPhase | GasPhase  | GasPhase | GasPhase  | PCM       | PCM      | PCM        | PCM      | PCM      | PCM      | GasPhase | GasPhase  | GasPhase | GasPhase  | GasPhase  | GasPhase | PCM        | PCM      | PCM      | PCM      | PCM      | PCM       |     |           |           |     |            |     |          |          |     |           |     |           |           |     |            |     | 
