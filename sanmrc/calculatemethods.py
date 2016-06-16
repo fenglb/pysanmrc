@@ -56,6 +56,13 @@ class CalculateMethods:
         self.method          = '6-31G(d,p)'
         self.solvent         = 'GasPhase'
 
+    def setMethod(self, method):
+        self.method = method
+    def setSolvent(self, solvent):
+        self.method = solvent
+    def setFunction(self, function):
+        self.function = function
+
     # calculate cph
     def _calculateCph(self, calc, exp, calcAv, expAv):
         if not ( len(exp) == len(calc) == len(calcAv) == len( expAv ) ):
@@ -116,12 +123,13 @@ class CalculateMethods:
 
     def calculateCP3(self, exp_data_pair, calc_data_pair, dtype):
 
-        getpara = partial(self.statpara.getStatParaData, name='CP3', 
+        getpara = lambda x:self.statpara.getStatParaData(name='CP3', 
                 soft=self.DFT_software, 
                 function=self.function,
                 method=self.method,
                 solvent=self.solvent, 
-                dist='n'):
+                dtype=x,
+                dist='n')
         if dtype=="13C":
             uv_correct = getpara('correctC13')
             uv_incorrect = getpara('incorrectC13')
@@ -131,7 +139,6 @@ class CalculateMethods:
         if dtype=="13C1H":
             uv_correct = getpara('correctC13H1')
             uv_incorrect = getpara('incorrectC13H1')
-                        )
         cp3_s = []
         argv = [calc_data_pair[0], exp_data_pair[0], 
                 calc_data_pair[1], exp_data_pair[1]]
@@ -146,15 +153,18 @@ class CalculateMethods:
         return bayersp(cp3_s[0], cp3_s[1]), bayersp(cp3_s[1], cp3_s[0])
 
     def calculateDP4(self, calc, exp, dtype):
-        meanC = 0.0
-        meanH = 0.0
-        stdevC = 2.306
+        getpara = lambda x: self.statpara.getStatParaData(name='DP4', 
+                soft=self.DFT_software, 
+                function=self.function,
+                method=self.method,
+                solvent=self.solvent, 
+                dtype=x, dist='t')
+        if dtype == "13C":
+            mean, stdev, degree = getpara("C13")
+        if dtype == "1H":
+            mean, stdev, degree = getpara("H1")
 
-        stdevH = 0.187
-        degreeC = 11.38
-        degreeH = 14.18
-        if dtype == "13C": return self._calculateTDP4(calc, exp, meanC, stdevC, degreeC)
-        if dtype == "1H":  return self._calculateTDP4(calc, exp, meanH, stdevH, degreeH)
+        return self._calculateTDP4(calc, exp, mean, stdev, degree)
 
 
     def calculateuTDP4(self, calc, exp, spX, usv_sp, usv_sp3):
@@ -175,21 +185,35 @@ class CalculateMethods:
 
     def _calculateuDP4(self, calc, exp, dtype, spX):
 
+        getpara = lambda x: self.statpara.getStatParaData(name='DP4+', 
+                soft=self.DFT_software, 
+                function=self.function,
+                method=self.method,
+                solvent=self.solvent, 
+                dtype=x, dist='t')
+
         if dtype == "13C":
-            usv_sp = [-6.16, 2.49, 6.53]
-            usv_sp3 = [1.3, 1.65, 6.29]
+            usv_sp = getpara("nonscaledC13(sp2)")
+            usv_sp3 = getpara("nonscaledC13(sp3)")
         if dtype == "1H":
-            usv_sp = [-0.17, 0.19, 13.81]
-            usv_sp3 = [-0.06, 0.17, 6.95]
+            usv_sp = getpara("nonscaledH1(sp2)")
+            usv_sp3 = getpara("nonscaledH1(sp3)")
         
         return self._calculateuTDP4( calc, exp, spX, usv_sp, usv_sp3 )
 
     def _calculatesDP4(self, calc, exp, dtype ):
 
+        getpara = lambda x: self.statpara.getStatParaData(name='DP4+', 
+                soft=self.DFT_software, 
+                function=self.function,
+                method=self.method,
+                solvent=self.solvent, 
+                dtype=x, dist='t')
+
         if dtype == "13C":
-            usv = [-6.16, 2.49, 6.53]
+            usv = getpara("scaledC13")
         if dtype == "1H":
-            usv = [-0.17, 0.19, 13.81]
+            usv = getpara("scaledH1")
         
         return self._calculateTDP4( calc, exp, *usv )
 
@@ -200,11 +224,27 @@ class CalculateMethods:
         return uDP4, uDP4*sDP4
 
 if __name__ == "__main__":
-    sp = StatPara("../data/statparas.db")
+    db_filename = "../data/statparas.db"
+    sp = StatPara(db_filename)
     print(sp.getStatParaData('CP3', 'Gaussian09', 'B3LYP', '6-31G', 'GasPhase', 'incorrectC13H1', 'n'))
     print(sp.getTMSData('DP4+', 'Gaussian09', 'B3LYP', '6-31G(d,p)', 'GasPhase'))
     print(sp.getStatParaData('DP4+', 'Gaussian09', 'B3LYP', '6-31G', 'GasPhase', 'C13', 't'))
     print("="*8)
     print(sp.getStatParaData('DP4+', 'Gaussian09', 'B3LYP', '6-31G(d,p)', 'GasPhase', 'scaledC13', 't'))
     print(sp.getStatParaData('DP4', 'Gaussian09', 'B3LYP', '6-31G(d,p)', 'GasPhase', 'C13', 't'))
+
+
+    calcMethod = CalculateMethods(db_filename)
+    calcMethod.setMethod('6-31G(d,p)')
+    calc_a = [74.25543650739220000000, 48.44569810240660000000, 176.85339877593200000000, 11.67264309668400000000, 138.21012855822000000000, 121.89729430807700000000, 122.50376880179900000000, 121.05681827872700000000, 58.83075033676600000000, 15.62731956011590000000]
+    calc_b = ([76.54606326018590000000, 48.31514100521790000000, 174.56828551337200000000, 18.42221331063060000000, 139.58787236106400000000, 121.50248362594900000000, 122.56072415709800000000, 121.01379975085700000000, 58.34041422828900000000, 15.42125704559360000000])
+    exp = [76.1218 ,47.0828, 175.6654, 14.2679 , 141.5826, 126.5307, 128.2366, 127.7682, 60.5621, 13.9824]
+
+    a = calcMethod.calculateDP4(calc_a, exp, '13C')
+    b = calcMethod.calculateDP4(calc_b, exp, '13C')
+    print( 100*a/(a+b), 100*b/(a+b) )
+
+    a = calcMethod._calculatesDP4(calc_a, exp, '13C')
+    b = calcMethod._calculatesDP4(calc_b, exp, '13C')
+    print( 100*a/(a+b), 100*b/(a+b) )
 
