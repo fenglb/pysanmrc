@@ -108,7 +108,16 @@ class CalculateMethods:
 
         cdp4 = reduce( lambda x, y: x * y, map( probility, errors ) )
         return cdp4
-
+    def _getStatPara(self, name, dtype, dist='t'):
+        usv = self.statpara.getStatParaData(name=name, 
+                    soft=self.DFT_software, 
+                    function=self.function,
+                    method=self.method,
+                    solvent=self.solvent, 
+                    dtype=dtype, dist=dist)
+        if not usv:
+            raise TypeError("Your Settings donot match for %s. No Statistical paraments found!" % name)
+        return usv
     # calculate correlation coefficient
     def calculateCC(self, calc, exp, dtype):
         if len(exp) != len(calc):
@@ -123,49 +132,37 @@ class CalculateMethods:
 
     def calculateCP3(self, exp_data_pair, calc_data_pair, dtype):
 
-        getpara = lambda x:self.statpara.getStatParaData(name='CP3', 
-                soft=self.DFT_software, 
-                function=self.function,
-                method=self.method,
-                solvent=self.solvent, 
-                dtype=x,
-                dist='n')
         if dtype=="13C":
-            uv_correct = getpara('correctC13')
-            uv_incorrect = getpara('incorrectC13')
+            uv_correct = self._getStatPara("CP3", 'correctC13', "n")
+            uv_incorrect = self._getStatPara("CP3", 'incorrectC13', "n")
         if dtype=="1H":
-            uv_correct = getpara('correctH1')
-            uv_incorrect = getpara('incorrectH1')
+            uv_correct = self._getStatPara("CP3", 'correctH1', "n")
+            uv_incorrect = self._getStatPara("CP3", 'incorrectH1', "n")
         if dtype=="13C1H":
-            uv_correct = getpara('correctC13H1')
-            uv_incorrect = getpara('incorrectC13H1')
+            uv_correct = self._getStatPara("CP3", 'correctC13H1', "n")
+            uv_incorrect = self._getStatPara("CP3", 'incorrectC13H1', "n")
+
         cp3_s = []
         argv = [calc_data_pair[0], exp_data_pair[0], 
                 calc_data_pair[1], exp_data_pair[1]]
-        cp3_s.append(calculateCph(*argv))
+        cp3_s.append(self._calculateCph(*argv))
 
         argv = [calc_data_pair[0], exp_data_pair[1], 
                 calc_data_pair[1], exp_data_pair[0]]
-        cp3_s.append(calculateCph(*argv))
+        cp3_s.append(self._calculateCph(*argv))
 
-        bayersp = partial(self._getBayersProbabilities, uv_correct[:2], uv_incorrect[:2] )
+        bayersp = partial(self._getBayersProbabilities, uv_correct=uv_correct[:2], uv_incorrect=uv_incorrect[:2] )
 
         return bayersp(cp3_s[0], cp3_s[1]), bayersp(cp3_s[1], cp3_s[0])
 
     def calculateDP4(self, calc, exp, dtype):
-        getpara = lambda x: self.statpara.getStatParaData(name='DP4', 
-                soft=self.DFT_software, 
-                function=self.function,
-                method=self.method,
-                solvent=self.solvent, 
-                dtype=x, dist='t')
+
         if dtype == "13C":
-            mean, stdev, degree = getpara("C13")
+            mean, stdev, degree = self._getStatPara("DP4", "C13")
         if dtype == "1H":
-            mean, stdev, degree = getpara("H1")
+            mean, stdev, degree = self._getStatPara("DP4", "H1")
 
         return self._calculateTDP4(calc, exp, mean, stdev, degree)
-
 
     def calculateuTDP4(self, calc, exp, spX, usv_sp, usv_sp3):
 
@@ -185,35 +182,21 @@ class CalculateMethods:
 
     def _calculateuDP4(self, calc, exp, dtype, spX):
 
-        getpara = lambda x: self.statpara.getStatParaData(name='DP4+', 
-                soft=self.DFT_software, 
-                function=self.function,
-                method=self.method,
-                solvent=self.solvent, 
-                dtype=x, dist='t')
-
         if dtype == "13C":
-            usv_sp = getpara("nonscaledC13(sp2)")
-            usv_sp3 = getpara("nonscaledC13(sp3)")
+            usv_sp = self._getStatPara("DP4+", "nonscaledC13(sp2)")
+            usv_sp3 = self._getStatPara("DP4+", "nonscaledC13(sp3)")
         if dtype == "1H":
-            usv_sp = getpara("nonscaledH1(sp2)")
-            usv_sp3 = getpara("nonscaledH1(sp3)")
+            usv_sp = self._getStatPara("DP4+", "nonscaledH1(sp2)")
+            usv_sp3 = self._getStatPara("DP4+", "nonscaledH1(sp3)")
         
-        return self._calculateuTDP4( calc, exp, spX, usv_sp, usv_sp3 )
+        return self.calculateuTDP4( calc, exp, spX, usv_sp, usv_sp3 )
 
     def _calculatesDP4(self, calc, exp, dtype ):
 
-        getpara = lambda x: self.statpara.getStatParaData(name='DP4+', 
-                soft=self.DFT_software, 
-                function=self.function,
-                method=self.method,
-                solvent=self.solvent, 
-                dtype=x, dist='t')
-
         if dtype == "13C":
-            usv = getpara("scaledC13")
+            usv = self._getStatPara("DP4+", "scaledC13")
         if dtype == "1H":
-            usv = getpara("scaledH1")
+            usv = self._getStatPara("DP4+", "scaledH1")
         
         return self._calculateTDP4( calc, exp, *usv )
 
@@ -238,13 +221,36 @@ if __name__ == "__main__":
     calcMethod.setMethod('6-31G(d,p)')
     calc_a = [74.25543650739220000000, 48.44569810240660000000, 176.85339877593200000000, 11.67264309668400000000, 138.21012855822000000000, 121.89729430807700000000, 122.50376880179900000000, 121.05681827872700000000, 58.83075033676600000000, 15.62731956011590000000]
     calc_b = ([76.54606326018590000000, 48.31514100521790000000, 174.56828551337200000000, 18.42221331063060000000, 139.58787236106400000000, 121.50248362594900000000, 122.56072415709800000000, 121.01379975085700000000, 58.34041422828900000000, 15.42125704559360000000])
-    exp = [76.1218 ,47.0828, 175.6654, 14.2679 , 141.5826, 126.5307, 128.2366, 127.7682, 60.5621, 13.9824]
+    exp_a = [76.1218 ,47.0828, 175.6654, 14.2679 , 141.5826, 126.5307, 128.2366, 127.7682, 60.5621, 13.9824]
+    exp_b = ([73.7292 ,46.5231 ,175.5017, 10.9476 , 141.5293, 125.9367, 128.0500, 127.3075,  60.524, 13.9214])
 
-    a = calcMethod.calculateDP4(calc_a, exp, '13C')
-    b = calcMethod.calculateDP4(calc_b, exp, '13C')
+    print("Test DP4")
+    a = calcMethod.calculateDP4(calc_a, exp_a, '13C')
+    b = calcMethod.calculateDP4(calc_b, exp_a, '13C')
+    print( 100*a/(a+b), 100*b/(a+b) )
+    a = calcMethod.calculateDP4(calc_a, exp_b, '13C')
+    b = calcMethod.calculateDP4(calc_b, exp_b, '13C')
     print( 100*a/(a+b), 100*b/(a+b) )
 
-    a = calcMethod._calculatesDP4(calc_a, exp, '13C')
-    b = calcMethod._calculatesDP4(calc_b, exp, '13C')
+    print("Test sDP4+")
+    a = calcMethod._calculatesDP4(calc_a, exp_a, '13C')
+    b = calcMethod._calculatesDP4(calc_b, exp_a, '13C')
+    print( 100*a/(a+b), 100*b/(a+b) )
+    a = calcMethod._calculatesDP4(calc_a, exp_b, '13C')
+    b = calcMethod._calculatesDP4(calc_b, exp_b, '13C')
     print( 100*a/(a+b), 100*b/(a+b) )
 
+    print("Test DP4+")
+    sp = [3, 3, 2, 3, 2, 2, 2, 2, 3, 3]
+    a = calcMethod.calculateDP4plus(calc_a, exp_a, '13C', sp)
+    b = calcMethod.calculateDP4plus(calc_b, exp_a, '13C', sp)
+    print( "uDP4+: ", 100*a[0]/(a[0]+b[0]), 100*b[0]/(a[0]+b[0]) )
+    print( "DP4+: ", 100*a[1]/(a[1]+b[1]), 100*b[1]/(a[1]+b[1]) )
+    a = calcMethod.calculateDP4plus(calc_a, exp_b, '13C', sp)
+    b = calcMethod.calculateDP4plus(calc_b, exp_b, '13C', sp)
+    print( "uDP4+: ", 100*a[0]/(a[0]+b[0]), 100*b[0]/(a[0]+b[0]) )
+    print( "DP4+: ", 100*a[1]/(a[1]+b[1]), 100*b[1]/(a[1]+b[1]) )
+
+    print("Test CP3")
+    calcMethod.setMethod('6-31G')
+    print(calcMethod.calculateCP3([calc_a, calc_b], [exp_a, exp_b], '13C'))

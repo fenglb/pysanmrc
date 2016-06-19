@@ -1,7 +1,7 @@
 from itertools import chain, product, permutations, combinations
 from functools import partial
 from nmrdata import NMRData, Molecular
-from comparemethods import calculateDP4, calculateCC, calculateMae, calculateCP3, calculateuDP4
+from calculatemethods import CalculateMethods
 from predata import scaledValue
 import pandas
 class StatisticalNMR:
@@ -146,7 +146,7 @@ class StatisticalNMR:
             self.printNMR(label, calc_data, exp_data, dtype)
 
             results = self.calc(exp_data, calc_data, 
-                    ['calculateDP4','calculateCP3', 'calculateCC', 'calculateMae', 'calculateuDP4'],
+                    ['calculateDP4','calculateCP3', 'calculateCC', 'calculateMae', 'calculateDP4plus'],
                     dtype)
             new_res = {'calculateuDP4':{}, 'calculateMae':{}, 'calculateCC':{}, 'calculateDP4':{}, 'calculateCP3':{}}
 
