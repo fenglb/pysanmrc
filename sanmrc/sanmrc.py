@@ -1,16 +1,39 @@
 from itertools import chain, product, permutations, combinations
 from functools import partial
 from nmrdata import NMRData, Molecular
-from calculatemethods import CalculateMethods
+import calculatemethods as cm
 from predata import scaledValue
-import pandas
+#import pandas
 class StatisticalNMR:
     def __init__(self):
         self.nmrdata = []
         self.molecular = Molecular()
+        self.statpara = cm.StatPara("../data/statparas.db")
+        self.calculate_results = {}
 
-        map(lambda func: setattr(self, func.__name__, func), 
-                [calculateDP4, calculateCC, calculateMae, calculateCP3])
+        self.DFT_software = "Gaussian09"
+        self.function     = "B3LYP"
+        self.method       = "6-31G(d,p)"
+        self.solvent      = "GasPhase"
+
+    def setFunction(self, function):
+        self.function = function
+    def setMethod(self, method):
+        self.method = method
+    def setSolvent(self, solvent):
+        self.solvent = solvent
+
+    def getStatPara(self, name, dtype, dist='t'):
+        usv = self.statpara.getStatParaData(name=name, 
+            soft=self.DFT_software, 
+            function=self.function,
+            method=self.method,
+            solvent=self.solvent, 
+            dtype=dtype, dist=dist)
+        if not usv:
+            raise TypeError("Your Settings donot match for %s. No Statistical paraments found!" % name)
+        return usv
+
     def readDataFromFile(self, filename):
         raw_calc_data = {}
         raw_exp_data = {}
@@ -69,6 +92,107 @@ class StatisticalNMR:
                     self.nmrdata.append(_nmrdata)
                     continue
 
+    def calculateMae(self):
+        _calculate_method = "Meam Average Error"
+        mae_results = {}
+        for index, dtype, label, exp_data, calc_data in self.productRawData():
+            for exp in exp_data:
+                for calc in calc_data:
+                    mae_results[exp+calc] = cm.calculateMae(calc, exp, dtype)
+
+        self.calculate_results[_calculate_method] = mae_results
+
+    def calculateCC(self, calc, exp, dtype):
+        _calculate_method = "correlation"
+        cc_results = {}
+        for index, dtype, label, exp_data, calc_data in self.productRawData():
+            for exp in exp_data:
+                for calc in calc_data:
+                    cc_results[exp+calc] = cm.calculateCC(calc, exp, dtype)
+        self.calculate_results[_calculate_method] = cc_results
+
+    def _getStatParaofCP3(self, dtype):
+        self.setMethod("6-31G")
+        if dtype == "13C":
+            uv_c = self.getStatPara("CP3", "correctC13", "n")
+            uv_i = self.getStatPara("CP3", "incorrectC13", "n")
+        if dtype == "1H":
+            uv_c = self.getStatPara("CP3", "correctH1", "n")
+            uv_i = self.getStatPara("CP3", "incorrectH1", "n")
+        if dtype == "13C1H":
+            uv_c = self.getStatPara("CP3", "correctC13H1", "n")
+            uv_i = self.getStatPara("CP3", "incorrectC13H1", "n")
+        return uv_c, uv_i
+
+    def calculateCP3(self):
+        _calculate_method = "CP3"
+        cp3_results = {}
+        for index, dtype, label, exp_data, calc_data in self.productRawData():
+            uv_correct, uv_incorrect = self._getStatParaofCP3(dtype)
+            for exp_label, exp_data in self.productPairData(exp_data,2):
+                for calc_label, calc_data in self.productPairData(calc_data,2):
+                    AaBb, AbBa = cm.calculateCP3(exp_data, calc_data, uv_correct, uv_incorrect)
+                    cp3_results[exp_label+calc_label] = AaBb
+                    calc_label = calc_label[::-1]
+                    cp3_results[exp_label+calc_label] = AbBa
+            if not self.calculate_results.has_key(index):
+                self.calculate_results[index] = {}
+            self.calculate_results[index][_calculate_method] = cp3_results
+
+    def _getStatParaofDP4(self, dtype):
+        if dtype == "13C":
+            usv = self.getStatPara("DP4", "C13")
+        if dtype == "1H":
+            usv = self.getStatPara("DP4", "H1")
+        return usv
+
+    def calculateDP4(self):
+        _calculate_method = "DP4"
+        dp4_results = {}
+        for index, dtype, label, exp_data, calc_data in self.productRawData():
+            usv = self._getStatParaofDP4(dtype)
+            for exp in exp_data:
+                for calc in calc_data:
+                    dp4_results[exp+calc] = cm.calculateDP4(calc, exp, dtype, usv)
+            if not self.calculate_results.has_key(index):
+                self.calculate_results[index] = {}
+            self.calculate_results[index][_calculate_method] = dp4_results
+
+    def _getStatParaofDP4pwithSP2(self, dtype):
+        if dtype == "13C":
+            return self.getStatPara("DP4+", "nonscaledC13(sp2)")
+        if dtype == "1H":
+            return self.getStatPara("DP4+", "nonscaledH1(sp2)")
+    def _getStatParaofDP4pwithSP3(self, dtype):
+        if dtype == "13C":
+            return self.getStatPara("DP4+", "nonscaledC13(sp3)")
+        if dtype == "1H":
+            return self.getStatPara("DP4+", "nonscaledH1(sp3)")
+    def _getStatParaofsDP4(self, dtype):
+        if dtype == "13C":
+            return self.getStatPara("DP4+", "scaledC13")
+        if dtype == "1H":
+            return self.getStatPara("DP4+", "scaledH1")
+
+    def calculateDP4p(self):
+        _calculate_method = "DP4+"
+        dp4p_results = {}
+        udp4_results = {}
+
+        if not self.molecular.hybs[dtype]: raise TypeError("No hybs")
+
+        for index, dtype, label, exp_data, calc_data in self.productRawData():
+            usv = self._getStatParaofsDP4(dtype)
+            usv_sp = self._getStatParaofDP4pwithSP2(dtype)
+            usv_sp3 = self._getStatParaofDP4pwithSP3(dtype)
+            for exp in exp_data:
+                for calc in calc_data:
+                    udp4, dp4p = cm.calculateDP4p(calc, exp, spX, usv, usv_sp, usv_sp3)
+                    dp4p_results[exp+calc] = dp4p
+                    ud4p_results[exp+calc] = ud4p
+        self.calculate_results[_calculate_method] = dp4p_results
+        self.calculate_results["uDP4"] = udp4_results
+
     def printNMR(self, label, calc, exp, dtype):
         calc_items = sorted(calc.keys())
         exp_items = sorted(exp.keys())
@@ -99,67 +223,32 @@ class StatisticalNMR:
         for _nmrdata in self.nmrdata:
             for i, item in enumerate(_nmrdata.all_exchange_list):
                 temp_list = lambda y: [_nmrdata.label[x] for x in chain.from_iterable(y)]
-                print(self.checkExchangeItem(temp_list(_nmrdata.all_exchange_list[0]), temp_list(item)))
+                data_label = self.checkExchangeItem(temp_list(_nmrdata.all_exchange_list[0]), temp_list(item))
                 temp_exp_data = _nmrdata.exchangeNMR(item)
-                yield _nmrdata.dtype, _nmrdata.label, temp_exp_data, _nmrdata.calc_data
-
-    def calc(self, exps, calcs, funcs, dtype=None ):
-        results = {}
-        for func_name in funcs:
-            results[func_name] = {}
-            func = getattr(self, func_name, None)
-            if not func: continue
-
-            if func_name == 'calculateCP3':
-                for exp_label, exp_data in self.productPairData(exps,2):
-                    results[func_name][exp_label] = {}
-                    for calc_label, calc_data in self.productPairData(calcs,2):
-                        scaled_calc_data = map( scaledValue, calc_data, exp_data )
-                        ab, ba = func(scaled_calc_data, exp_data, dtype)
-                        results[func_name][exp_label][calc_label] = ab*100
-                        results[func_name][exp_label][calc_label[::-1]] = ba*100
-            else:
-                for tab_exp in exps:
-                    results[func_name][tab_exp] = {}
-                    for tab_calc in calcs:
-                        calc = calcs[tab_calc]; exp = exps[tab_exp]
-                        # pre treatment
-                        if( func_name != 'calculateuDP4' ): calc = scaledValue(calc, exp)
-
-                        results[func_name][tab_exp][tab_calc] = func(calc, exp, dtype)
-                    if( func_name in ['calculateuDP4', 'calculateDP4'] ):
-                        sum_values = sum(results[func_name][tab_exp].values())
-                        for key in results[func_name][tab_exp]:
-                            results[func_name][tab_exp][key] *= 100
-                            if sum_values == 0:
-                                results[func_name][tab_exp][key] = 'NaN'
-                            else:
-                                results[func_name][tab_exp][key] /= sum_values
-        return results
-
-    def calculateuDP4(self, calc, exp, dtype):
-        if not self.molecular.hybs[dtype]: return 0.0
-        return calculateuDP4( calc, exp, dtype, self.molecular.hybs[dtype])
+                yield data_label, _nmrdata.dtype, _nmrdata.label, temp_exp_data, _nmrdata.calc_data
 
     def report(self):
-        for dtype, label, exp_data, calc_data in self.productRawData():
+        for index, dtype, label, exp_data, calc_data in self.productRawData():
             self.printNMR(label, calc_data, exp_data, dtype)
 
             results = self.calc(exp_data, calc_data, 
                     ['calculateDP4','calculateCP3', 'calculateCC', 'calculateMae', 'calculateDP4plus'],
                     dtype)
-            new_res = {'calculateuDP4':{}, 'calculateMae':{}, 'calculateCC':{}, 'calculateDP4':{}, 'calculateCP3':{}}
+            new_res = {'calculateDP4plus':{}, 'calculateMae':{}, 'calculateCC':{}, 'calculateDP4':{}, 'calculateCP3':{}}
 
             for key in new_res:
                 for item in results[key]:
                     cdp4_s = results[key][item]
                     cdp4_s = map(lambda x: (item+x, cdp4_s[x]),  cdp4_s)
                     new_res[key].update( dict(cdp4_s) )
-            print(pandas.DataFrame(new_res))
+            #print(pandas.DataFrame(new_res))
+            print new_res
 
 if __name__ == "__main__":
     import sys
     s = StatisticalNMR()
     filename = sys.argv[1]
     s.readDataFromFile(filename)
-    s.report()
+    s.calculateCP3()
+    print s.calculate_results
+    #s.report()
