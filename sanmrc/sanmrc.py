@@ -3,7 +3,7 @@ from functools import partial
 from nmrdata import NMRData, Molecular
 import calculatemethods as cm
 from predata import scaledValue
-#import pandas
+import sys
 class StatisticalNMR:
     def __init__(self):
         self.nmrdata = []
@@ -95,7 +95,7 @@ class StatisticalNMR:
                     continue
 
     def calculateMae(self):
-        _calculate_method = "Meam Average Error"
+        _calculate_method = "Mae"
         for index, dtype, label, exp_data, calc_data in self.productRawData():
             mae_results = {}
             for exp in exp_data:
@@ -106,7 +106,7 @@ class StatisticalNMR:
             self._restoreResults(dtype, index, _calculate_method, mae_results)
 
     def calculateCC(self):
-        _calculate_method = "correlation"
+        _calculate_method = "CC"
         for index, dtype, label, exp_data, calc_data in self.productRawData():
             cc_results = {}
             for exp in exp_data:
@@ -160,8 +160,8 @@ class StatisticalNMR:
 
     def calculateDP4(self):
         _calculate_method = "DP4"
-        dp4_results = {}
         for index, dtype, label, exp_data, calc_data in self.productRawData():
+            dp4_results = {}
             usv = self._getStatParaofDP4(dtype)
             for exp in exp_data:
                 results = []; keys = []
@@ -171,7 +171,7 @@ class StatisticalNMR:
                     results.append(cm.calculateDP4(scale_calc,
                                  exp_data[exp], usv))
                 results = [100.*x/sum(results) for x in results]
-                dp4_results = dict(zip(keys, results))
+                dp4_results.update(dict(zip(keys, results)))
             self._restoreResults(dtype, index, _calculate_method, dp4_results)
 
     def _getStatParaofDP4pwithSP2(self, dtype):
@@ -192,12 +192,12 @@ class StatisticalNMR:
 
     def calculateDP4p(self):
         _calculate_method = "DP4+"
-        dp4p_results = {}
-        udp4_results = {}
 
         for index, dtype, label, exp_data, calc_data in self.productRawData():
             if not self.molecular.hybs[dtype]: 
                 raise TypeError("No hybs in %s, %s" % (dtype, index))
+            dp4p_results = {}
+            udp4_results = {}
             spX = self.molecular.hybs[dtype]
             usv = self._getStatParaofsDP4(dtype)
             usv_sp = self._getStatParaofDP4pwithSP2(dtype)
@@ -214,24 +214,10 @@ class StatisticalNMR:
 
                 uresults = [100.*x/sum(uresults) for x in uresults]
                 dresults = [100.*x/sum(dresults) for x in dresults]
-                dp4p_results = dict(zip(keys, dresults))
-                udp4_results = dict(zip(keys, uresults))
+                dp4p_results.update(dict(zip(keys, dresults)))
+                udp4_results.update(dict(zip(keys, uresults)))
             self._restoreResults(dtype, index, _calculate_method, dp4p_results)
             self._restoreResults(dtype, index, "uDP4", udp4_results)
-
-    def printNMR(self, label, calc, exp, dtype):
-        calc_items = sorted(calc.keys())
-        exp_items = sorted(exp.keys())
-        data_list = calc_items + exp_items
-
-        label_str = "\t".join([format(item, "<4") for item in ['',] + data_list])
-        print("\t"+label_str)
-
-        for i in range(len(label)):
-            items = [label[i],] + [format(calc[item][i], ".2f") for item in calc_items ] + \
-                [format(exp[item][i], ".2f") for item in exp_items]
-            label_str = "\t".join([format(item, "<4") for item in items])
-            print("\t"+label_str)
 
     def checkExchangeItem(self, raw_item ,item):
         exchange_items = []
@@ -253,32 +239,70 @@ class StatisticalNMR:
                 temp_exp_data = _nmrdata.exchangeNMR(item)
                 yield data_label, _nmrdata.dtype, _nmrdata.label, temp_exp_data, _nmrdata.calc_data
 
-    def report(self):
+    def printNMR(self, label, calc, exp, dtype, pfile):
+        calc_items = sorted(calc.keys())
+        exp_items = sorted(exp.keys())
+        data_list = calc_items + exp_items
+
+        label_str = "\t".join([format(item, "<4") for item in ['',] + data_list])
+        pfile.write("\t"+label_str+"\n")
+
+        for i in range(len(label)):
+            items = [label[i],] + [format(calc[item][i], ".2f") for item in calc_items ] + \
+                [format(exp[item][i], ".2f") for item in exp_items]
+            label_str = "\t".join([format(item, "<4") for item in items])
+            pfile.write("\t"+label_str+"\n")
+
+    def checkResults(self, dtype=None, index=None, method=None):
+        
+        method_values = self.calculate_results[dtype][index][method]
+        sets = {}
+        for item in method_values:
+            if item[0] in sets:
+                sets[item[0]].append(item)
+            else:
+                sets[item[0]] = [item,]
+        best_value_label = []
+        for items in sets.values():
+            match = dict(map(lambda x: (x,method_values[x]), items))
+            if method == "Mae":
+                best_value_label.append(min(match, key=lambda x: match[x]))
+            else:
+                best_value_label.append(max(match, key=lambda x: match[x]))
+        return best_value_label
+            
+    def report(self, pfile=sys.stdout):
         for index, dtype, label, exp_data, calc_data in self.productRawData():
-            self.printNMR(label, calc_data, exp_data, dtype)
+            pfile.write(dtype+"="*5+index+"="*5+"\n")
+            self.printNMR(label, calc_data, exp_data, dtype, pfile)
+            pfile.write("Results:\n")
+            cols = []
+            rows = self.calculate_results[dtype][index].keys()
+            for methods in self.calculate_results[dtype][index]:
+                cols += self.calculate_results[dtype][index][methods].keys()
+            cols = sorted(set(cols), reverse=True)
+            pfile.write("\t".join([format(x, "<4") for x in ["Method",]+cols])+"\n")
+            for methods in self.calculate_results[dtype][index]:
+                values = [self.calculate_results[dtype][index][methods].get(x, -1) for x in cols]
+                if methods in ["CC", "Mae"]:
+                    values_str = [format(x, ".4f") for x in values]
+                else:
+                    values_str = [format(x, ".2f") for x in values]
+                values_str = map(lambda x: x if float(x) != -1 else '', values_str)
+                values_str = [methods,] + values_str
+                pfile.write("\t".join([format(x, "<4") for x in values_str]))
 
-            results = self.calc(exp_data, calc_data, 
-                    ['calculateDP4','calculateCP3', 'calculateCC', 'calculateMae', 'calculateDP4plus'],
-                    dtype)
-            new_res = {'calculateDP4plus':{}, 'calculateMae':{}, 'calculateCC':{}, 'calculateDP4':{}, 'calculateCP3':{}}
+                pfile.write("\t*[%s]\n" % ",".join(self.checkResults(dtype, index, methods)))
 
-            for key in new_res:
-                for item in results[key]:
-                    cdp4_s = results[key][item]
-                    cdp4_s = map(lambda x: (item+x, cdp4_s[x]),  cdp4_s)
-                    new_res[key].update( dict(cdp4_s) )
-            #print(pandas.DataFrame(new_res))
-            print new_res
 
 if __name__ == "__main__":
-    import sys
     s = StatisticalNMR()
     filename = sys.argv[1]
     s.readDataFromFile(filename)
     s.calculateCC()
     s.calculateMae()
     s.calculateDP4()
-    s.calculateDP4p()
-    s.calculateCP3()
-    print s.calculate_results
-    #s.report()
+    #s.calculateDP4p()
+    #s.calculateCP3()
+    #s.report(open("output.txt", "w"))
+    s.report()
