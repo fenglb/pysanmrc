@@ -31,8 +31,7 @@ class StatisticalNMR:
             solvent=self.solvent, 
             dtype=dtype, dist=dist)
         if not usv:
-            raise TypeError("Your Settings donot match for %s. \
-                    No Statistical paraments found!" % name)
+            raise TypeError("Your Settings donot match for %s. No Statistical paraments found!" % name)
         return usv
 
     def readDataFromFile(self, filename):
@@ -101,8 +100,9 @@ class StatisticalNMR:
             mae_results = {}
             for exp in exp_data:
                 for calc in calc_data:
+                    scale_calc = scaledValue(calc_data[calc], exp_data[exp])
                     mae_results[exp+calc] = cm.calculateMae(
-                          calc_data[calc], exp_data[exp])
+                          scale_calc, exp_data[exp])
             self._restoreResults(dtype, index, _calculate_method, mae_results)
 
     def calculateCC(self):
@@ -111,8 +111,9 @@ class StatisticalNMR:
             cc_results = {}
             for exp in exp_data:
                 for calc in calc_data:
+                    scale_calc = scaledValue(calc_data[calc], exp_data[exp])
                     cc_results[exp+calc] = cm.calculateCC(
-                        calc_data[calc], exp_data[exp])
+                        scale_calc, exp_data[exp])
             self._restoreResults(dtype, index, _calculate_method, cc_results)
 
     def _getStatParaofCP3(self, dtype):
@@ -142,6 +143,7 @@ class StatisticalNMR:
             uv_correct, uv_incorrect = self._getStatParaofCP3(dtype)
             for exp_label, exp_data in self.productPairData(exp_data,2):
                 for calc_label, calc_data in self.productPairData(calc_data,2):
+                    calc_data = map(scaledValue, calc_data, exp_data)
                     AaBb, AbBa = cm.calculateCP3(exp_data, calc_data, uv_correct, uv_incorrect)
                     cp3_results[exp_label+calc_label] = AaBb*100.
                     calc_label = calc_label[::-1]
@@ -164,8 +166,9 @@ class StatisticalNMR:
             for exp in exp_data:
                 results = []; keys = []
                 for calc in calc_data:
+                    scale_calc = scaledValue(calc_data[calc], exp_data[exp])
                     keys.append(exp+calc)
-                    results.append(cm.calculateDP4(calc_data[calc],
+                    results.append(cm.calculateDP4(scale_calc,
                                  exp_data[exp], usv))
                 results = [100.*x/sum(results) for x in results]
                 dp4_results = dict(zip(keys, results))
@@ -203,9 +206,11 @@ class StatisticalNMR:
                 dresults = []; uresults = []; keys = []
                 for calc in calc_data:
                     keys.append(exp+calc)
-                    udp4, dp4 = cm.calculateDP4p(
-                        calc_data[calc], exp_data[exp], spX, usv, usv_sp, usv_sp3)
-                    uresults.append(udp4); dresults.append(dp4)
+                    udp4 = cm.calculateuTDP4(
+                        calc_data[calc], exp_data[exp], spX, usv_sp, usv_sp3)
+                    scale_calc = scaledValue(calc_data[calc], exp_data[exp])
+                    sdp4 = cm.calculateDP4(scale_calc, exp_data[exp], usv)
+                    uresults.append(udp4); dresults.append(udp4*sdp4)
 
                 uresults = [100.*x/sum(uresults) for x in uresults]
                 dresults = [100.*x/sum(dresults) for x in dresults]
@@ -274,5 +279,6 @@ if __name__ == "__main__":
     s.calculateMae()
     s.calculateDP4()
     s.calculateDP4p()
+    s.calculateCP3()
     print s.calculate_results
     #s.report()

@@ -1,7 +1,6 @@
 from scipy import stats
 from functools import partial, reduce
 from itertools import compress
-from predata import scaledValue
 import sqlite3
 class StatPara:
     def __init__(self, db_filename):
@@ -133,34 +132,9 @@ def calculateuTDP4(calc, exp, spX, usv_sp, usv_sp3):
 
     exp_sp3  = [ value for i, value in enumerate(exp)  if spX[i] == 3 ]
     calc_sp3 = [ value for i, value in enumerate(calc) if spX[i] == 3 ]
-    
     expect_sp, stdev_sp, degree_sp = usv_sp
     expect_sp3, stdev_sp3, degree_sp3 = usv_sp3
 
     dp4_sp   = calculateTDP4( calc_sp, exp_sp, expect_sp, stdev_sp, degree_sp )
     dp4_sp3  = calculateTDP4( calc_sp3, exp_sp3, expect_sp3, stdev_sp3, degree_sp3 )
     return dp4_sp * dp4_sp3
-
-def calculateDP4p(calc, exp, spX, usv, usv_sp, usv_sp3):
-
-    uDP4 = calculateuTDP4(calc, exp, spX, usv_sp, usv_sp3 )
-    scale_calc = scaledValue(calc, exp)
-    sDP4 = calculateDP4(scale_calc, exp, usv)
-
-    return uDP4, uDP4*sDP4
-
-if __name__ == "__main__":
-    db_filename = "../data/statparas.db"
-    sp = StatPara(db_filename)
-    print(sp.getStatParaData('CP3', 'Gaussian09', 'B3LYP', '6-31G', 'GasPhase', 'incorrectC13H1', 'n'))
-    print(sp.getTMSData('DP4+', 'Gaussian09', 'B3LYP', '6-31G(d,p)', 'GasPhase'))
-    print(sp.getStatParaData('DP4+', 'Gaussian09', 'B3LYP', '6-31G', 'GasPhase', 'C13', 't'))
-    print("="*8)
-    print(sp.getStatParaData('DP4+', 'Gaussian09', 'B3LYP', '6-31G(d,p)', 'GasPhase', 'scaledC13', 't'))
-    print(sp.getStatParaData('DP4', 'Gaussian09', 'B3LYP', '6-31G(d,p)', 'GasPhase', 'C13', 't'))
-
-
-    calc_a = [74.25543650739220000000, 48.44569810240660000000, 176.85339877593200000000, 11.67264309668400000000, 138.21012855822000000000, 121.89729430807700000000, 122.50376880179900000000, 121.05681827872700000000, 58.83075033676600000000, 15.62731956011590000000]
-    calc_b = ([76.54606326018590000000, 48.31514100521790000000, 174.56828551337200000000, 18.42221331063060000000, 139.58787236106400000000, 121.50248362594900000000, 122.56072415709800000000, 121.01379975085700000000, 58.34041422828900000000, 15.42125704559360000000])
-    exp_a = [76.1218 ,47.0828, 175.6654, 14.2679 , 141.5826, 126.5307, 128.2366, 127.7682, 60.5621, 13.9824]
-    exp_b = ([73.7292 ,46.5231 ,175.5017, 10.9476 , 141.5293, 125.9367, 128.0500, 127.3075,  60.524, 13.9214])
