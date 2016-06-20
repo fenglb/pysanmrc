@@ -31,7 +31,8 @@ class StatisticalNMR:
             solvent=self.solvent, 
             dtype=dtype, dist=dist)
         if not usv:
-            raise TypeError("Your Settings donot match for %s. No Statistical paraments found!" % name)
+            raise TypeError("Your Settings donot match for %s. \
+                    No Statistical paraments found!" % name)
         return usv
 
     def readDataFromFile(self, filename):
@@ -62,8 +63,10 @@ class StatisticalNMR:
                         raw_calc_data[item] = []
                     for item in expItems:
                         raw_exp_data[item] = []
-                    if not Labels: raise SyntaxError("the format of input file has error!")
-                    if( len(line.split()) != 2 ): raise SyntaxError("the format of input file has error!")
+                    if not Labels: 
+                        raise SyntaxError("the format of input file has error!")
+                    if( len(line.split()) != 2 ): 
+                        raise SyntaxError("the format of input file has error!")
                     dtype = line.split()[1]
                     while True:
                         line = f.readline()
@@ -94,22 +97,23 @@ class StatisticalNMR:
 
     def calculateMae(self):
         _calculate_method = "Meam Average Error"
-        mae_results = {}
         for index, dtype, label, exp_data, calc_data in self.productRawData():
+            mae_results = {}
             for exp in exp_data:
                 for calc in calc_data:
-                    mae_results[exp+calc] = cm.calculateMae(calc, exp, dtype)
+                    mae_results[exp+calc] = cm.calculateMae(
+                          calc_data[calc], exp_data[exp])
+            self._restoreResults(dtype, index, _calculate_method, mae_results)
 
-        self.calculate_results[_calculate_method] = mae_results
-
-    def calculateCC(self, calc, exp, dtype):
+    def calculateCC(self):
         _calculate_method = "correlation"
-        cc_results = {}
         for index, dtype, label, exp_data, calc_data in self.productRawData():
+            cc_results = {}
             for exp in exp_data:
                 for calc in calc_data:
-                    cc_results[exp+calc] = cm.calculateCC(calc, exp, dtype)
-        self.calculate_results[_calculate_method] = cc_results
+                    cc_results[exp+calc] = cm.calculateCC(
+                        calc_data[calc], exp_data[exp])
+            self._restoreResults(dtype, index, _calculate_method, cc_results)
 
     def _getStatParaofCP3(self, dtype):
         self.setMethod("6-31G")
@@ -124,20 +128,26 @@ class StatisticalNMR:
             uv_i = self.getStatPara("CP3", "incorrectC13H1", "n")
         return uv_c, uv_i
 
+    def _restoreResults(self, dtype, index, method, value):
+        if not self.calculate_results.has_key(dtype):
+            self.calculate_results[dtype] = {}
+        if not self.calculate_results[dtype].has_key(index):
+            self.calculate_results[dtype][index] = {}
+        self.calculate_results[dtype][index][method] = value
+        
     def calculateCP3(self):
         _calculate_method = "CP3"
-        cp3_results = {}
         for index, dtype, label, exp_data, calc_data in self.productRawData():
+            cp3_results = {}
             uv_correct, uv_incorrect = self._getStatParaofCP3(dtype)
             for exp_label, exp_data in self.productPairData(exp_data,2):
                 for calc_label, calc_data in self.productPairData(calc_data,2):
                     AaBb, AbBa = cm.calculateCP3(exp_data, calc_data, uv_correct, uv_incorrect)
-                    cp3_results[exp_label+calc_label] = AaBb
+                    cp3_results[exp_label+calc_label] = AaBb*100.
                     calc_label = calc_label[::-1]
-                    cp3_results[exp_label+calc_label] = AbBa
-            if not self.calculate_results.has_key(index):
-                self.calculate_results[index] = {}
-            self.calculate_results[index][_calculate_method] = cp3_results
+                    cp3_results[exp_label+calc_label] = AbBa*100.
+
+            self._restoreResults(dtype, index, _calculate_method, cp3_results)
 
     def _getStatParaofDP4(self, dtype):
         if dtype == "13C":
@@ -152,11 +162,14 @@ class StatisticalNMR:
         for index, dtype, label, exp_data, calc_data in self.productRawData():
             usv = self._getStatParaofDP4(dtype)
             for exp in exp_data:
+                results = []; keys = []
                 for calc in calc_data:
-                    dp4_results[exp+calc] = cm.calculateDP4(calc, exp, dtype, usv)
-            if not self.calculate_results.has_key(index):
-                self.calculate_results[index] = {}
-            self.calculate_results[index][_calculate_method] = dp4_results
+                    keys.append(exp+calc)
+                    results.append(cm.calculateDP4(calc_data[calc],
+                                 exp_data[exp], usv))
+                results = [100.*x/sum(results) for x in results]
+                dp4_results = dict(zip(keys, results))
+            self._restoreResults(dtype, index, _calculate_method, dp4_results)
 
     def _getStatParaofDP4pwithSP2(self, dtype):
         if dtype == "13C":
@@ -179,19 +192,27 @@ class StatisticalNMR:
         dp4p_results = {}
         udp4_results = {}
 
-        if not self.molecular.hybs[dtype]: raise TypeError("No hybs")
-
         for index, dtype, label, exp_data, calc_data in self.productRawData():
+            if not self.molecular.hybs[dtype]: 
+                raise TypeError("No hybs in %s, %s" % (dtype, index))
+            spX = self.molecular.hybs[dtype]
             usv = self._getStatParaofsDP4(dtype)
             usv_sp = self._getStatParaofDP4pwithSP2(dtype)
             usv_sp3 = self._getStatParaofDP4pwithSP3(dtype)
             for exp in exp_data:
+                dresults = []; uresults = []; keys = []
                 for calc in calc_data:
-                    udp4, dp4p = cm.calculateDP4p(calc, exp, spX, usv, usv_sp, usv_sp3)
-                    dp4p_results[exp+calc] = dp4p
-                    ud4p_results[exp+calc] = ud4p
-        self.calculate_results[_calculate_method] = dp4p_results
-        self.calculate_results["uDP4"] = udp4_results
+                    keys.append(exp+calc)
+                    udp4, dp4 = cm.calculateDP4p(
+                        calc_data[calc], exp_data[exp], spX, usv, usv_sp, usv_sp3)
+                    uresults.append(udp4); dresults.append(dp4)
+
+                uresults = [100.*x/sum(uresults) for x in uresults]
+                dresults = [100.*x/sum(dresults) for x in dresults]
+                dp4p_results = dict(zip(keys, dresults))
+                udp4_results = dict(zip(keys, uresults))
+            self._restoreResults(dtype, index, _calculate_method, dp4p_results)
+            self._restoreResults(dtype, index, "uDP4", udp4_results)
 
     def printNMR(self, label, calc, exp, dtype):
         calc_items = sorted(calc.keys())
@@ -249,6 +270,9 @@ if __name__ == "__main__":
     s = StatisticalNMR()
     filename = sys.argv[1]
     s.readDataFromFile(filename)
-    s.calculateCP3()
+    s.calculateCC()
+    s.calculateMae()
+    s.calculateDP4()
+    s.calculateDP4p()
     print s.calculate_results
     #s.report()

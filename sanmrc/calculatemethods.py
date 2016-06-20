@@ -95,13 +95,13 @@ def calculateTDP4(calc, exp, expect, stdev, degree):
     return cdp4
 
 # calculate correlation coefficient
-def calculateCC(calc, exp, dtype):
+def calculateCC(calc, exp):
     if len(exp) != len(calc):
         raise Exception("the length of the exp list must be the same as the calc")
     return stats.pearsonr( exp, calc )[0]
     
 # calculate MAE
-def calculateMae(calc, exp, dtype):
+def calculateMae(calc, exp):
     if len(exp) != len(calc):
         raise Exception("the length of the exp list must be the same as the calc")
     return sum( abs(x - y) for x, y in zip(calc, exp) ) / len( calc ) 
@@ -121,7 +121,7 @@ def calculateCP3(exp_data_pair, calc_data_pair, uv_correct, uv_incorrect):
 
     return bayersp(cp3_s[0], cp3_s[1]), bayersp(cp3_s[1], cp3_s[0])
 
-def calculateDP4(calc, exp, dtype, usv):
+def calculateDP4(calc, exp, usv):
     mean, stdev, degree = usv
     return calculateTDP4(calc, exp, mean, stdev, degree)
 
